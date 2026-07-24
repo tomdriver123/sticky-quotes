@@ -1,8 +1,8 @@
 {
-  "name": "sticky-quotes-opus",
+  "name": "sticky-quotes",
   "version": "0.0.1",
   "private": true,
-  "description": "Sticky Quotes — Notes / Votes / Quotes. Opus bake-off variant.",
+  "description": "Sticky Quotes — Notes / Votes / Quotes. Title-less notes that persist as markdown files.",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -11,7 +11,7 @@
     "test": "ng test",
     "lint": "ng lint"
   },
-  "//": "Versions are pinned exactly (no ^ or ~) to the tree dashboard/ resolved to. Angular packages must all sit on the same patch version or npm hits an ERESOLVE peer conflict. Exact pins also keep bake-off variants on an identical dependency set.",
+  "//": "Versions are pinned exactly (no ^ or ~) to the tree dashboard/ resolved to. Angular packages must all sit on the same patch version or npm hits an ERESOLVE peer conflict.",
   "dependencies": {
     "@angular/animations": "20.3.18",
     "@angular/common": "20.3.18",

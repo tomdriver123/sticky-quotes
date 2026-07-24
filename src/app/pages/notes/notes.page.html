@@ -11,5 +11,14 @@
     </ion-toolbar>
   </ion-header>
 
-  <!-- Notes content goes here. -->
+  <ion-list lines="full">
+    @for (note of notes; track note.createdAt) {
+      <ion-item>
+        <ion-label>
+          <p class="note-body">{{ note.body }}</p>
+          <ion-note>{{ note.editedAt | date: 'MMM d, h:mm a' }}</ion-note>
+        </ion-label>
+      </ion-item>
+    }
+  </ion-list>
 </ion-content>

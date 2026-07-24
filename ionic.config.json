@@ -1,0 +1,7 @@
+{
+  "name": "sticky-quotes-opus",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}

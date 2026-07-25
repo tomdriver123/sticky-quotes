@@ -7,6 +7,8 @@ import { IonicModule, IonicRouteStrategy } from '@ionic/angular';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routing.module';
+import { NotesRepository } from './services/notes-repository';
+import { HttpNotesRepository } from './services/http-notes-repository.service';
 
 @NgModule({
   declarations: [AppComponent],
@@ -14,6 +16,7 @@ import { AppRoutingModule } from './app-routing.module';
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     provideHttpClient(),
+    { provide: NotesRepository, useClass: HttpNotesRepository },
   ],
   bootstrap: [AppComponent],
 })

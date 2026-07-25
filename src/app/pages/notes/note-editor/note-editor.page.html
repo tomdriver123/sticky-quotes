@@ -1,0 +1,24 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/notes"></ion-back-button>
+    </ion-buttons>
+    @if (noteId) {
+      <ion-buttons slot="end">
+        <ion-button color="danger" (click)="deleteNote()" aria-label="Delete note">
+          <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-textarea
+    [formControl]="bodyCtrl"
+    [autofocus]="isNewNote"
+    autoGrow="true"
+    placeholder="Start writing…"
+    class="note-textarea"
+  ></ion-textarea>
+</ion-content>

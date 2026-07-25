@@ -1,0 +1,14 @@
+ion-content {
+  --padding-top: 16px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-bottom: 16px;
+}
+
+.note-textarea {
+  min-height: 100%;
+  font-size: 1rem;
+  line-height: 1.6;
+  --padding-start: 0;
+  --padding-end: 0;
+}

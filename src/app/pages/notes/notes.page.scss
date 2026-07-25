@@ -8,3 +8,13 @@
   overflow: hidden;
   margin-bottom: 4px;
 }
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--ion-color-medium);
+  font-size: 0.95rem;
+  text-align: center;
+}

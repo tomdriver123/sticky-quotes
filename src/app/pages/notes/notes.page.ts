@@ -1,11 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { AlertController } from '@ionic/angular';
 
-// Static demo data — replaced by NotesRepository when v1 is built.
-interface MockNote {
-  body: string;
-  createdAt: string;
-  editedAt: string;
-}
+import { Note } from '../../models/note.model';
+import { NotesRepository } from '../../services/notes-repository';
 
 @Component({
   selector: 'app-notes',
@@ -14,22 +12,50 @@ interface MockNote {
   standalone: false,
 })
 export class NotesPage {
-  // Notes are title-less by design: body + created + edited, newest-edited first.
-  notes: MockNote[] = [
-    {
-      body: 'A notepad that’s working towards something. Most notes go nowhere — what if every note had a finish line?',
-      createdAt: '2026-07-23T09:12:00',
-      editedAt: '2026-07-23T18:40:00',
-    },
-    {
-      body: 'The best ideas show up while you’re doing the dishes. Maybe friction isn’t the enemy of thought — distraction is.',
-      createdAt: '2026-07-21T22:03:00',
-      editedAt: '2026-07-22T08:15:00',
-    },
-    {
-      body: 'Ship the smallest thing that can disappoint you.',
-      createdAt: '2026-07-19T14:47:00',
-      editedAt: '2026-07-19T14:47:00',
-    },
-  ];
+  notes: Note[] = [];
+
+  private readonly repo = inject(NotesRepository);
+  private readonly router = inject(Router);
+  private readonly alertCtrl = inject(AlertController);
+
+  ionViewWillEnter(): void {
+    this.loadNotes();
+  }
+
+  private loadNotes(): void {
+    this.repo.list().subscribe(notes => {
+      this.notes = notes.sort(
+        (a, b) => new Date(b.editedAt).getTime() - new Date(a.editedAt).getTime(),
+      );
+    });
+  }
+
+  createNote(): void {
+    this.router.navigate(['/tabs/notes/new']);
+  }
+
+  openNote(note: Note): void {
+    this.router.navigate(['/tabs/notes', note.id]);
+  }
+
+  async deleteNote(note: Note): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      message: 'Delete note?',
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Delete',
+          role: 'destructive',
+          handler: () => {
+            this.repo.delete(note.id).subscribe(() => this.loadNotes());
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  get dashboardUrl(): string {
+    return `http://${window.location.hostname}:4200`;
+  }
 }

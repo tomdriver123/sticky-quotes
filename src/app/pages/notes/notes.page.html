@@ -1,6 +1,16 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button [href]="dashboardUrl" target="_blank" rel="noopener noreferrer" aria-label="Shadow dashboard">
+        <ion-icon slot="icon-only" name="grid-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
     <ion-title>Notes</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="createNote()" aria-label="New note">
+        <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -11,14 +21,25 @@
     </ion-toolbar>
   </ion-header>
 
+  @if (notes.length === 0) {
+    <div class="empty-state">No notes yet. Tap ✏️ to start.</div>
+  }
+
   <ion-list lines="full">
-    @for (note of notes; track note.createdAt) {
-      <ion-item>
-        <ion-label>
-          <p class="note-body">{{ note.body }}</p>
-          <ion-note>{{ note.editedAt | date: 'MMM d, h:mm a' }}</ion-note>
-        </ion-label>
-      </ion-item>
+    @for (note of notes; track note.id) {
+      <ion-item-sliding>
+        <ion-item button (click)="openNote(note)">
+          <ion-label>
+            <p class="note-body">{{ note.body }}</p>
+            <ion-note>{{ note.editedAt | date: 'MMM d, h:mm a' }}</ion-note>
+          </ion-label>
+        </ion-item>
+        <ion-item-options side="end">
+          <ion-item-option color="danger" (click)="deleteNote(note)">
+            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+          </ion-item-option>
+        </ion-item-options>
+      </ion-item-sliding>
     }
   </ion-list>
 </ion-content>

@@ -22,6 +22,18 @@ For a single-process setup, `npm run build` and then `node server/notes-api.js` 
 
 Other scripts: `npm run build`, `npm test` (Karma and Jasmine), `npm run lint` (ESLint).
 
+## Screenshots
+
+Captured against a throwaway data dir holding three invented notes.
+
+<img src="docs/screenshots/notes-phone.png" alt="The notes list on a phone, newest note first" width="260"> <img src="docs/screenshots/editor-phone.png" alt="A grocery list note open in the editor on a phone" width="260">
+
+The notes list on a phone, newest first, and a note open in the editor.
+
+![The notes list at desktop width](docs/screenshots/notes.png)
+
+The same list at desktop width.
+
 ## Where notes live
 
 By default in `./data/` (gitignored), one markdown file per note with `createdAt` and `editedAt` frontmatter and the body below. All storage access in the app goes through the `NotesRepository` abstract class in `src/app/services/notes-repository.ts`; `HttpNotesRepository` is the only implementation.

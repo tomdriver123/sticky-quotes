@@ -1,81 +1,65 @@
-# sticky-quotes
+# Sticky Quotes
 
-Ionic Angular app for **Sticky Quotes** — three tabs: Notes, Votes, Quotes. v1 is the Notes tab: title-less notes with full CRUD, each persisted as a markdown file on the Mac.
+A notepad that is working towards something. Ionic Angular app with three tabs: Notes, Votes, Quotes. Version 1 is the Notes tab, title-less notes with full create, edit and delete, each note stored as one markdown file on disk by a tiny Node server. Votes and Quotes are placeholders for the next two stages.
 
-> **Project docs live outside this folder**:
-> [`vault/projects/sticky-quotes/`](../vault/projects/sticky-quotes/) — start at its `README.md`.
-> The v1 spec and definition-of-done is `build-brief.md`.
-
-_Renamed from `sticky-quotes-opus/` on 2026-07-24 — the model-bake-off framing was retired (one codebase, multiple models). History in `vault/projects/sticky-quotes/decisions.md`._
-
-## Run it
-
-Two processes in dev:
-
-```bash
-node server/notes-api.js    # file API + static server on http://localhost:4310
-npm start                   # Angular dev server on http://localhost:4300 (proxies /api → :4310)
-```
-
-One process in production: `npm run build`, then the same `node server/notes-api.js` serves the built `www/` **and** the API on **:4310**. A launchd agent (`server/com.shadow.sticky-quotes.plist`, label `com.shadow.sticky-quotes`) keeps it running — see "Server" below.
-
-Port **4300** (dev) is pinned in `angular.json`; **4310** is the API/production port. The Shadow dashboard keeps 4200.
-
-Other scripts: `npm run build` (→ `www/`), `npm test` (Karma/Jasmine), `npm run lint` (ESLint).
-
-## Where notes live
-
-Repo-root [`../sticky-quotes-data/`](../sticky-quotes-data/) — one markdown file per note (`createdAt`/`editedAt` frontmatter + body), git-tracked. The server auto-commits that folder a few seconds after each write; git history is the backup story. **Browser storage is never the source of truth** (it's evictable — permanence is the product thesis).
-
-All storage access in the app goes through the `NotesRepository` abstract class (`src/app/services/notes-repository.ts`); `HttpNotesRepository` is the implementation. Components never touch storage directly.
-
-## Phone access (LAN)
-
-Open `http://<mac-hostname>.local:4310` on the phone (same Wi-Fi), then "Add to Home Screen" for a standalone web clip. No service worker in v1 (needs HTTPS over LAN); the data lives on the Mac anyway, so offline capture is a v1.1 problem (outbox).
-
-## Server
-
-`server/notes-api.js` — single-file Node HTTP server, zero npm dependencies. Routes: `GET/POST /api/notes`, `GET/PUT/DELETE /api/notes/:id`; everything else serves `www/` with an `index.html` SPA fallback. Writes are atomic (temp file + rename).
-
-Install the launchd agent:
-
-```bash
-mkdir -p ~/Library/Logs/shadow
-cp server/com.shadow.sticky-quotes.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.shadow.sticky-quotes.plist
-curl http://localhost:4310/api/notes   # verify
-```
-
-The plist hardcodes the node binary path (launchd has no shell PATH) — check it matches `which node` before loading. Logs: `~/Library/Logs/shadow/sticky-quotes.{stdout,stderr}.log`.
+Built as a personal tool, then opened up. No accounts, no database, no cloud. Your notes are files you own.
 
 ## Stack
 
-Pinned to match [`dashboard/`](../dashboard/) exactly, so anything learned in one app transfers to the other:
+- Angular 20, Ionic 8, Capacitor 8, TypeScript 5.9
+- NgModules rather than standalone components, SCSS, dark mode always on
+- A single-file Node HTTP server with zero npm dependencies for storage and static serving
 
-- Angular 20 · Ionic 8 · Capacitor 8 · TypeScript 5.9
-- **NgModules, not standalone components** — every component carries `standalone: false`, and `@angular-eslint/prefer-standalone` is off
-- Classic `@angular-devkit/build-angular:browser` builder
-- SCSS, dark mode always on (`dark.always.css`)
+## Run it
 
-Deliberately dropped from the dashboard's dependency list: `chart.js`, `marked`, `ngx-markdown`, `swiper`. Add them back if a feature actually needs them.
+```bash
+npm ci
+node server/notes-api.js    # file API and static server on http://127.0.0.1:4310
+npm start                   # Angular dev server on http://localhost:4300, proxies /api to :4310
+```
+
+For a single-process setup, `npm run build` and then `node server/notes-api.js` serves the built `www/` and the API together on port 4310.
+
+Other scripts: `npm run build`, `npm test` (Karma and Jasmine), `npm run lint` (ESLint).
+
+## Where notes live
+
+By default in `./data/` (gitignored), one markdown file per note with `createdAt` and `editedAt` frontmatter and the body below. All storage access in the app goes through the `NotesRepository` abstract class in `src/app/services/notes-repository.ts`; `HttpNotesRepository` is the only implementation.
+
+## Configuration
+
+Everything is optional. The defaults keep a fresh clone self-contained.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `STICKY_QUOTES_PORT` | `4310` | Listen port |
+| `STICKY_QUOTES_HOST` | `127.0.0.1` | Bind address. Keep it local and put a reverse proxy or Tailscale in front for phones |
+| `STICKY_QUOTES_DATA_DIR` | `<repo>/data` | Directory for the note files |
+| `STICKY_QUOTES_COMMIT_REPO` | unset | A git repo that contains the data dir. When set, each save is committed there, limited to the data dir, under a separate automation identity. Unset means nothing is committed |
+| `STICKY_QUOTES_CORS_ORIGIN` | unset | Allowed origin for cross-origin callers. Unset means same-origin only |
+
+## Phone access
+
+The server listens on localhost on purpose. To use the app from a phone, front it with something that terminates TLS and does the auth, for example `tailscale serve --https=4310 http://127.0.0.1:4310`, then open the HTTPS URL on the phone and add it to the home screen. The dev server accepts other hosts with `ng serve --allowed-hosts <your-host>`.
+
+## Server
+
+`server/notes-api.js`. Routes: `GET` and `POST /api/notes`, `GET`, `PUT` and `DELETE /api/notes/:id`. Everything else serves `www/` with an SPA fallback, or a 503 until `www/` is built. Note ids are timestamps plus a short random suffix and are validated before touching the filesystem. Writes go to a temp file and are renamed into place.
 
 ## Layout
 
 ```
 src/app/
-├── app.module.ts / app-routing.module.ts   '' → /tabs
-├── models/note.model.ts                    Note = id + body + createdAt + editedAt (no title, by design)
-├── services/                               NotesRepository (abstract) + HttpNotesRepository
-├── tabs/                                   ion-tabs shell, tab bar, child routes
-└── pages/
-    ├── notes/                              list + note-editor/ (create/edit/delete)
-    ├── votes/                              blank (disabled tab)
-    └── quotes/                             blank (disabled tab)
-server/
-├── notes-api.js                            the file API
-└── com.shadow.sticky-quotes.plist          launchd template
+  app.module.ts, app-routing.module.ts   '' redirects to /tabs
+  models/note.model.ts                   Note = id, body, createdAt, editedAt (no title, by design)
+  services/                              NotesRepository (abstract) and HttpNotesRepository
+  tabs/                                  ion-tabs shell, tab bar, child routes
+  pages/notes/                           list and note-editor (create, edit, delete)
+  pages/votes/, pages/quotes/            placeholders, disabled tabs
+server/notes-api.js                      the file API
+.githooks/pre-commit                     hygiene gate, a no-op unless the maintainer's kit is present
 ```
 
-## Note on dashboard conventions
+## License
 
-`dashboard/node_modules/` has ~54k files accidentally committed to git. This app's build artifacts are covered by explicit `sticky-quotes/…` lines in the repo root `.gitignore` — check `git status` before committing if you change build tooling.
+MIT

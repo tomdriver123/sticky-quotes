@@ -6,10 +6,22 @@ const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const { URL } = require('node:url');
 
-const PORT = 4310;
-const DATA_DIR = path.resolve(__dirname, '../../sticky-quotes-data');
-const REPO_ROOT = path.resolve(__dirname, '../..');
+// Configuration (all optional). Defaults keep a fresh clone self-contained: notes land in ./data,
+// nothing is committed anywhere, and the server only listens on localhost.
+//   STICKY_QUOTES_PORT         listen port (default 4310)
+//   STICKY_QUOTES_HOST         bind address (default 127.0.0.1; put a reverse proxy or Tailscale in front for phones)
+//   STICKY_QUOTES_DATA_DIR     where note markdown files live (default <repo>/data, gitignored)
+//   STICKY_QUOTES_COMMIT_REPO  a git repo that CONTAINS the data dir; when set, saves are auto-committed there
+//                              with a pathspec limited to the data dir, under a separate automation identity
+//   STICKY_QUOTES_CORS_ORIGIN  allowed origin for cross-origin callers (default: none, same-origin only)
+const PORT = Number(process.env.STICKY_QUOTES_PORT) || 4310;
+const HOST = process.env.STICKY_QUOTES_HOST || '127.0.0.1';
+const DATA_DIR = path.resolve(process.env.STICKY_QUOTES_DATA_DIR || path.resolve(__dirname, '../data'));
+const COMMIT_REPO = process.env.STICKY_QUOTES_COMMIT_REPO ? path.resolve(process.env.STICKY_QUOTES_COMMIT_REPO) : null;
+const CORS_ORIGIN = process.env.STICKY_QUOTES_CORS_ORIGIN || '';
 const WWW_DIR = path.resolve(__dirname, '../www');
+const GIT = process.env.GIT_BIN || '/usr/bin/git';
+const AUTOMATION_IDENT = ['-c', 'user.name=Shadow Automation', '-c', 'user.email=shadow-automation@localhost'];
 
 const CONTENT_TYPES = {
   html: 'text/html', js: 'application/javascript', css: 'text/css',
@@ -68,18 +80,29 @@ function allNotes() {
     .sort((a, b) => (b.editedAt || '') < (a.editedAt || '') ? -1 : 1);
 }
 
-// ── Auto-commit (debounced) ───────────────────────────────────────────────────
+// ── Auto-commit (debounced, opt-in) ──────────────────────────────────────────
+// Only when STICKY_QUOTES_COMMIT_REPO is set AND the data dir sits inside that repo. The commit is
+// limited to the data dir pathspec, so nothing a human has staged in that repo is ever swept in.
+
+function commitPathspec() {
+  if (!COMMIT_REPO) return null;
+  const rel = path.relative(COMMIT_REPO, DATA_DIR);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  return rel;
+}
 
 let commitTimer = null;
 function scheduleCommit() {
+  const rel = commitPathspec();
+  if (!rel) return;
   if (commitTimer) clearTimeout(commitTimer);
   commitTimer = setTimeout(() => {
     commitTimer = null;
     try {
-      execFileSync('/usr/bin/git', ['-C', REPO_ROOT, 'add', 'sticky-quotes-data/'], { stdio: 'pipe' });
-      execFileSync('/usr/bin/git', ['-C', REPO_ROOT, 'commit', '-m', 'auto(sticky-quotes): save notes'], { stdio: 'pipe' });
+      execFileSync(GIT, ['-C', COMMIT_REPO, 'add', '--', rel], { stdio: 'pipe' });
+      execFileSync(GIT, ['-C', COMMIT_REPO, ...AUTOMATION_IDENT, 'commit', '-q', '-m', 'auto(sticky-quotes): save notes', '--', rel], { stdio: 'pipe' });
     } catch (e) {
-      // "nothing to commit" exits non-zero — that's fine; log anything unexpected
+      // "nothing to commit" exits non-zero, which is fine; log anything unexpected
       const msg = e.stderr ? e.stderr.toString().trim() : e.message;
       if (msg && !msg.includes('nothing to commit') && !msg.includes('nothing added')) {
         process.stderr.write(`[auto-commit] ${msg}\n`);
@@ -91,7 +114,9 @@ function scheduleCommit() {
 // ── CORS / response helpers ───────────────────────────────────────────────────
 
 function cors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (!CORS_ORIGIN) return; // same-origin only: the built app is served by this process
+  res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
@@ -240,8 +265,14 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, HOST, () => {
   const wwwReady = fs.existsSync(WWW_DIR);
-  console.log(`Sticky Quotes API listening on :${PORT}`);
+  console.log(`Sticky Quotes API listening on http://${HOST}:${PORT}`);
+  console.log(`Notes dir: ${DATA_DIR}`);
   console.log(`Static serving: ${wwwReady ? `active (${WWW_DIR})` : 'inactive (www/ not built)'}`);
+  if (COMMIT_REPO && !commitPathspec()) {
+    console.warn(`[auto-commit] disabled: ${DATA_DIR} is not inside STICKY_QUOTES_COMMIT_REPO (${COMMIT_REPO})`);
+  } else {
+    console.log(`Auto-commit: ${COMMIT_REPO ? `on (${COMMIT_REPO}, pathspec ${commitPathspec()})` : 'off'}`);
+  }
 });
